@@ -1,6 +1,10 @@
+import 'dart:math';
+
 import 'package:animated_date_picker/colors.dart';
 import 'package:animated_date_picker/utility.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
 
 void main() {
@@ -29,7 +33,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     selectedMonth = DateTime.now().monthStart;
     selectedDate = DateTime.now().dayStart;
-
+    getCounter();
     super.initState();
   }
 
@@ -37,44 +41,75 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-          margin: EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: calendarGradient),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _Header(
-                selectedMonth: selectedMonth,
-                selectedDate: selectedDate,
-                isMinimized: true,
-                counter: counter,
-                onCounterChange: (value) {
+        child: Stack(
+          alignment: Alignment.bottomCenter,
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+              margin: EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+              decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  gradient: calendarGradient),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _Header(
+                    selectedMonth: selectedMonth,
+                    selectedDate: selectedDate,
+                    isMinimized: isMinimized,
+                    counter: counter,
+                    onCounterChange: (value) {
+                      setState(() {
+                        counter = value;
+                      });
+                    },
+                    onChange: (value) {
+                      setState(() {
+                        selectedMonth = value;
+                      });
+                    },
+                  ),
+                  _Body(
+                    selectedDate: selectedDate,
+                    selectedMonth: selectedMonth,
+                    counter: counter,
+                    isMinimized: isMinimized,
+                    selectDate: (DateTime value) => setState(() {
+                      selectedDate = value;
+                    }),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              bottom: 10,
+              child: InkWell(
+                onTap: () {
                   setState(() {
-                    counter = value;
+                    isMinimized = !isMinimized;
                   });
                 },
-                onChange: (value) {
-                  setState(() {
-                    selectedMonth = value;
-                    counter = 0;
-                  });
-                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(boxShadow: [
+                    BoxShadow(
+                        offset: Offset(0, 2),
+                        blurRadius: 15,
+                        spreadRadius: 3,
+                        color: machineGunMetal.withOpacity(0.4))
+                  ], color: paperWhite, borderRadius: BorderRadius.circular(4)),
+                  child: Icon(
+                    isMinimized
+                        ? CupertinoIcons.chevron_down
+                        : CupertinoIcons.chevron_up,
+                    size: 14,
+                    color: machineGunMetal,
+                  ),
+                ),
               ),
-              _Body(
-                selectedDate: selectedDate,
-                selectedMonth: selectedMonth,
-                counter: counter,
-                isMinimized: true,
-                selectDate: (DateTime value) => setState(() {
-                  selectedDate = value;
-                }),
-              ),
-            ],
-          ),
+            )
+          ],
         ),
       ),
     );
@@ -88,7 +123,18 @@ class _MyAppState extends State<MyApp> {
 
     DateTime today = DateTime.now();
 
-    for (int i = 0; i < data.weeks.length; i++) {}
+    for (int i = 0; i < data.weeks.length; i++) {
+      if (data.weeks[i].indexWhere((element) {
+            return (element.date.day == today.day &&
+                element.date.month == today.month &&
+                element.date.year == today.year);
+          }) !=
+          -1) {
+        setState(() {
+          counter = i;
+        });
+      }
+    }
   }
 }
 
@@ -113,46 +159,36 @@ class _Body extends StatelessWidget {
       year: selectedMonth.year,
       month: selectedMonth.month,
     );
-    print(data.weeks);
     TextStyle dayTextStyle =
         TextStyle(fontSize: 12, color: paperWhite, fontWeight: FontWeight.w600);
 
     List<String> days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: days
-              .map((item) => Text(
-                    item.toUpperCase(),
-                    style: dayTextStyle,
-                  ))
-              .toList(),
-        ),
-        // const SizedBox(height: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: isMinimized
-              ? [
-                  Row(
-                    children: data.weeks[counter].map((d) {
-                      return Expanded(
-                        child: _RowItem(
-                          hasRightBorder: false,
-                          date: d.date,
-                          isActiveMonth: d.isActiveMonth,
-                          onTap: () => selectDate(d.date),
-                          isSelected: selectedDate != null &&
-                              selectedDate!.isSameDate(d.date),
+    return AnimatedSize(
+      curve: Curves.ease,
+      duration: Duration(milliseconds: 400),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: days
+                .map((item) => Container(
+                      width: 30,
+                      child: Center(
+                        child: Text(
+                          item.toUpperCase(),
+                          style: dayTextStyle,
                         ),
-                      );
-                    }).toList(),
-                  ),
-                ]
-              : [
-                  for (var week in data.weeks)
+                      ),
+                    ))
+                .toList(),
+          ),
+          // const SizedBox(height: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: isMinimized
+                ? [
                     Row(
-                      children: week.map((d) {
+                      children: data.weeks[counter].map((d) {
                         return Expanded(
                           child: _RowItem(
                             hasRightBorder: false,
@@ -165,9 +201,27 @@ class _Body extends StatelessWidget {
                         );
                       }).toList(),
                     ),
-                ],
-        ),
-      ],
+                  ]
+                : [
+                    for (var week in data.weeks)
+                      Row(
+                        children: week.map((d) {
+                          return Expanded(
+                            child: _RowItem(
+                              hasRightBorder: false,
+                              date: d.date,
+                              isActiveMonth: d.isActiveMonth,
+                              onTap: () => selectDate(d.date),
+                              isSelected: selectedDate != null &&
+                                  selectedDate!.isSameDate(d.date),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                  ],
+          ),
+        ],
+      ),
     );
   }
 }
